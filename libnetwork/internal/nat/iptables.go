@@ -77,7 +77,7 @@ func SetSNAT(bridgeName string, subnet net.IPNet) error {
 	return nil
 }
 
-func UnsetSNAT(bridgeName string, subnet *net.IPNet) error {
+func UnsetSNAT(bridgeName string, subnet net.IPNet) error {
 	if err := Iptables.Delete(table, "POSTROUTING", "-o", bridgeName, "-m", "addrtype", "--src-type", "LOCAL", "-j", "MASQUERADE"); err != nil {
 		return xerrors.Errorf("unset src-type LOCAL failed: %w", err)
 	}

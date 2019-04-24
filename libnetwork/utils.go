@@ -90,6 +90,10 @@ func RemoveNetwork(name string) error {
 		return xerrors.Errorf("delete bridge failed: %w", err)
 	}
 
+	if err := nat.UnsetSNAT(nw.Name, nw.Subnet); err != nil {
+		return xerrors.Errorf("unset SNAT failed: %w", err)
+	}
+
 	if err := os.Remove(filepath.Join(paths.BridgePath, nw.Name)); err != nil {
 		return xerrors.Errorf("remove bridge %s config file failed: %w", nw.Name, err)
 	}
