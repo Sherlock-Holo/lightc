@@ -7,7 +7,7 @@ a lightweight container without daemon
 3. docker is heavy with daemon
 
 ## What features lightc has
-- non-big-daemon
+- non-heavy-daemon
 - no user-land proxy
 - replace iptables with nftables (after stable version)
 
