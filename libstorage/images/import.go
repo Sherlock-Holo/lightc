@@ -25,7 +25,7 @@ func ImportImage(imagePath, imageName string) (err error) {
 		return errors.ImageImportConflict{ConflictName: imageName}
 	}
 
-	if err := os.MkdirAll(filepath.Join(paths.ImagesPath, imageName), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(paths.ImagesPath, imageName), 0700); err != nil {
 		return xerrors.Errorf("mkdir failed: %w", err)
 	}
 

@@ -14,12 +14,6 @@ import (
 func List() (images []Image, err error) {
 	infos, err := ioutil.ReadDir(paths.ImagesPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(paths.ImagesPath, 0700); err != nil {
-				return nil, xerrors.Errorf("mkdir images dir failed: %w", err)
-			}
-			return nil, nil
-		}
 		return nil, xerrors.Errorf("read images dir failed: %w", err)
 	}
 
