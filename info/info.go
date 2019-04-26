@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -77,9 +78,15 @@ func (ct CustomTime) String() string {
 }
 
 func GetInfo(containerID string) (*Info, error) {
-	b, err := ioutil.ReadFile(filepath.Join(paths.LightcDir, containerID, paths.ConfigName))
-	if err != nil {
+	b, err := ioutil.ReadFile(filepath.Join(paths.RootFSPath, containerID, paths.ConfigName))
+	switch {
+	case os.IsNotExist(err):
+		return nil, ContainerNotExist{ID: containerID}
+
+	default:
 		return nil, xerrors.Errorf("read config file %s failed: %w", containerID, err)
+
+	case err == nil:
 	}
 
 	info := new(Info)

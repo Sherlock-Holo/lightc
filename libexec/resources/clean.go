@@ -21,6 +21,7 @@ func CleanResources(parent *exec.Cmd, cInfo *info.Info, rootFS *rootfs.RootFS, c
 	_ = cInfo.Stderr.Close()
 
 	cInfo.Status = info.STOPPED
+	cInfo.Pid = -1
 
 	if err := volume.Unmount(rootFS.ID, cInfo.Volumes); err != nil {
 		logrus.Error(xerrors.Errorf("unmount volume failed: %w", err))

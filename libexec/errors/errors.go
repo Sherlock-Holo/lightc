@@ -1,9 +1,9 @@
 package errors
 
-type ContainerNotExist struct {
+type ContainerStopped struct {
 	ID string
 }
 
-func (ce ContainerNotExist) Error() string {
-	return "container " + ce.ID + " not exist"
+func (cs ContainerStopped) Error() string {
+	return "container " + cs.ID + " is stopped"
 }

@@ -9,6 +9,8 @@ func Execute() {
 		runCmd,
 		attachCmd,
 		listCmd,
+		stopCmd,
+		killCmd,
 
 		initCmd,
 		monitorCmd,

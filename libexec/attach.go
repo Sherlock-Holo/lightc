@@ -1,38 +1,27 @@
 package libexec
 
 import (
-	"encoding/json"
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 
 	"github.com/Sherlock-Holo/lightc/info"
-	"github.com/Sherlock-Holo/lightc/libexec/errors"
-	"github.com/Sherlock-Holo/lightc/paths"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/xerrors"
 )
 
 func Attach(containerID string) error {
-	configFile, err := os.Open(filepath.Join(paths.RootFSPath, containerID, paths.ConfigName))
+	cInfo, err := info.GetInfo(containerID)
+	notExist := new(info.ContainerNotExist)
 	switch {
-	case os.IsNotExist(err):
-		return errors.ContainerNotExist{ID: containerID}
+	case xerrors.As(err, notExist):
+		return notExist
 
 	default:
-		return xerrors.Errorf("open container %s config file failed: %w", containerID, err)
+		return xerrors.Errorf("get container info failed: %w", err)
 
 	case err == nil:
-	}
-	defer func() {
-		_ = configFile.Close()
-	}()
-
-	cInfo := new(info.Info)
-	if err := json.NewDecoder(configFile).Decode(cInfo); err != nil {
-		return xerrors.Errorf("decode container %s config file failed: %w", containerID, err)
 	}
 
 	if cInfo.Status != info.RUNNING {
