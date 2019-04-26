@@ -8,6 +8,7 @@ func Execute() {
 		networkCmd,
 		runCmd,
 		attachCmd,
+		listCmd,
 
 		initCmd,
 		monitorCmd,
@@ -31,6 +32,8 @@ func Execute() {
 	runCmd.Flags().BoolVarP(&detach, "detach", "d", false, "detach container")
 	runCmd.Flags().StringSliceVarP(&volumes, "volume", "v", nil, "container data volume")
 	runCmd.Flags().StringSliceVarP(&envs, "env", "e", nil, "add env into container")
+
+	listCmd.Flags().BoolVarP(&allContainers, "all", "a", false, "list all containers include stopped")
 
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Fatal(err)

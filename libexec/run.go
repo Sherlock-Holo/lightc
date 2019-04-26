@@ -48,6 +48,8 @@ func Run(
 		RmAfterRun: rmAfterRun,
 		Envs:       envs,
 		Network:    networkName,
+		ImageName:  rootFS.ImageName,
+		CmdStr:     cmdStr,
 	}
 
 	if !detach {

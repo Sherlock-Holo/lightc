@@ -41,6 +41,8 @@ type Info struct {
 	Detach        bool            `json:"detach"`
 	RmAfterRun    bool            `json:"rm_after_run"`
 	Envs          []string        `json:"envs"`
+	ImageName     string          `json:"image_name"`
+	CmdStr        string          `json:"cmd_str"`
 
 	Parent     *exec.Cmd       `json:"-"`
 	StoppedCtx context.Context `json:"-"`
