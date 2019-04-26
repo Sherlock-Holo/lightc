@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sherlock-Holo/lightc/info"
 	"github.com/Sherlock-Holo/lightc/libexec/internal/process"
+	"github.com/Sherlock-Holo/lightc/libexec/resources"
 	"github.com/Sherlock-Holo/lightc/libnetwork"
 	"github.com/Sherlock-Holo/lightc/libstorage/rootfs"
 	"github.com/Sherlock-Holo/lightc/libstorage/volume"
@@ -34,23 +35,12 @@ func Run(
 	detach bool,
 	rmAfterRun bool,
 ) (*info.Info, error) {
-	parent, wPipe, err := process.NewParentProcess(
-		envs,
-		rootFS,
-	)
-	if err != nil {
-		return nil, xerrors.Errorf("new parent process failed: %w", err)
-	}
-	defer func() {
-		_ = wPipe.Close()
-	}()
-
 	cInfo := &info.Info{
 		ID:         rootFS.ID,
 		RootFS:     rootFS,
 		Cmd:        strings.Split(cmdStr, " "),
 		CreateTime: info.CustomTime(time.Now()),
-		Parent:     parent,
+		// Parent:     parent,
 		Status:     info.RUNNING,
 		Volumes:    volumes,
 		TTY:        tty,
@@ -60,73 +50,86 @@ func Run(
 		Network:    networkName,
 	}
 
-	if tty {
-		ptm, err := pty.Start(parent)
-		if err != nil {
-			return nil, xerrors.Errorf("start parent process with pty failed: %w", err)
-		}
-
-		cInfo.Stdin = ptm
-		cInfo.Stdout = ptm
-		cInfo.Stderr = ptm
-	} else {
-		stdoutR, stdoutW, err := os.Pipe()
-		if err != nil {
-			return nil, xerrors.Errorf("create stdout pipe failed: %w", err)
-		}
-
-		parent.Stdout = stdoutW
-		cInfo.Stdout = stdoutR
-
-		stderrR, stderrW, err := os.Pipe()
-		if err != nil {
-			return nil, xerrors.Errorf("create stderr pipe failed: %w", err)
-		}
-
-		parent.Stderr = stderrW
-		cInfo.Stderr = stderrR
-
-		if err := parent.Start(); err != nil {
-			return nil, xerrors.Errorf("start parent process with pipe failed: %w", err)
-		}
-	}
-
-	cInfo.Pid = parent.Process.Pid
-
-	configFile, err := os.OpenFile(filepath.Join(paths.RootFSPath, cInfo.ID, paths.ConfigName), os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		// kill parent because config file create failed
-		_ = parent.Process.Kill()
-		return nil, xerrors.Errorf("create container %s config file failed: %w", cInfo.ID, err)
-	}
-
-	encoder := json.NewEncoder(configFile)
-	encoder.SetIndent("", "    ")
-	if err := encoder.Encode(cInfo); err != nil {
-		// kill parent because config file save failed
-		_ = parent.Process.Kill()
-		return nil, xerrors.Errorf("encode container %s config failed: %w", cInfo.ID, err)
-	}
-
-	// add container into network
-	if networkName != "" {
-		if err := libnetwork.AddContainerIntoNetwork(networkName, cInfo); err != nil {
-			// kill parent because set network failed
-			_ = parent.Process.Kill()
-			return nil, xerrors.Errorf("add container into network failed: %w", err)
-		}
-	}
-
-	// send info to parent
-	if err := json.NewEncoder(wPipe).Encode(cInfo); err != nil {
-		// kill parent because send info failed
-		_ = parent.Process.Kill()
-		return nil, xerrors.Errorf("send info to parent process failed: %w", err)
-	}
-
 	if !detach {
+		parent, wPipe, err := process.NewParentProcess(
+			envs,
+			rootFS,
+		)
+		if err != nil {
+			return nil, xerrors.Errorf("new parent process failed: %w", err)
+		}
+		defer func() {
+			_ = wPipe.Close()
+		}()
+
+		cInfo.Parent = parent
+
+		if tty {
+			ptm, err := pty.Start(parent)
+			if err != nil {
+				return nil, xerrors.Errorf("start parent process with pty failed: %w", err)
+			}
+
+			cInfo.Stdin = ptm
+			cInfo.Stdout = ptm
+			cInfo.Stderr = ptm
+		} else {
+			stdoutR, stdoutW, err := os.Pipe()
+			if err != nil {
+				return nil, xerrors.Errorf("create stdout pipe failed: %w", err)
+			}
+
+			parent.Stdout = stdoutW
+			cInfo.Stdout = stdoutR
+
+			stderrR, stderrW, err := os.Pipe()
+			if err != nil {
+				return nil, xerrors.Errorf("create stderr pipe failed: %w", err)
+			}
+
+			parent.Stderr = stderrW
+			cInfo.Stderr = stderrR
+
+			if err := parent.Start(); err != nil {
+				return nil, xerrors.Errorf("start parent process with pipe failed: %w", err)
+			}
+		}
+
+		cInfo.Pid = parent.Process.Pid
+
+		configFile, err := os.OpenFile(filepath.Join(paths.RootFSPath, cInfo.ID, paths.ConfigName), os.O_CREATE|os.O_RDWR, 0600)
+		if err != nil {
+			// kill parent because config file create failed
+			_ = parent.Process.Kill()
+			return nil, xerrors.Errorf("create container %s config file failed: %w", cInfo.ID, err)
+		}
+
+		encoder := json.NewEncoder(configFile)
+		encoder.SetIndent("", "    ")
+		if err := encoder.Encode(cInfo); err != nil {
+			// kill parent because config file save failed
+			_ = parent.Process.Kill()
+			return nil, xerrors.Errorf("encode container %s config failed: %w", cInfo.ID, err)
+		}
+
+		// add container into network
+		if networkName != "" {
+			if err := libnetwork.AddContainerIntoNetwork(networkName, cInfo); err != nil {
+				// kill parent because set network failed
+				_ = parent.Process.Kill()
+				return nil, xerrors.Errorf("add container into network failed: %w", err)
+			}
+		}
+
+		// send info to parent
+		if err := json.NewEncoder(wPipe).Encode(cInfo); err != nil {
+			// kill parent because send info failed
+			_ = parent.Process.Kill()
+			return nil, xerrors.Errorf("send info to parent process failed: %w", err)
+		}
+
 		// resources clean
-		defer cleanResources(parent, cInfo, rootFS, configFile, rmAfterRun)
+		defer resources.CleanResources(parent, cInfo, rootFS, configFile, rmAfterRun, nil)
 
 		if tty {
 			oldState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
@@ -171,34 +174,23 @@ func Run(
 		return cInfo, nil
 	}
 
-	// detach mode
-
 	monitorPipeR, monitorPipeW, err := os.Pipe()
 	if err != nil {
-		// kill parent because create monitor pipe failed
-		_ = parent.Process.Kill()
 		return nil, xerrors.Errorf("create monitor pipe failed: %w", err)
 	}
+	defer func() {
+		_ = monitorPipeW.Close()
+	}()
 
-	cmd := exec.Command("/proc/self/exe", "monitor")
+	monitor := exec.Command("/proc/self/exe", "monitor")
+	monitor.ExtraFiles = append(monitor.ExtraFiles, monitorPipeR)
 
-	if tty {
-		// cInfo.Stdout.(*os.File) is ptm
-		cmd.ExtraFiles = append(cmd.ExtraFiles, monitorPipeR, cInfo.Stdout.(*os.File))
-	} else {
-		// cInfo.Stdout.(*os.File), cInfo.Stderr.(*os.File) are pipe
-		cmd.ExtraFiles = append(cmd.ExtraFiles, monitorPipeR, cInfo.Stdout.(*os.File), cInfo.Stderr.(*os.File))
+	if err := monitor.Start(); err != nil {
+		return nil, xerrors.Errorf("start monitor failed: %w", err)
 	}
 
-	if err := cmd.Start(); err != nil {
-		return nil, xerrors.Errorf("start monitor process failed: %w", err)
-	}
-
-	encoder = json.NewEncoder(monitorPipeW)
-	encoder.SetIndent("", "    ")
-
-	if err := encoder.Encode(cInfo); err != nil {
-		return nil, xerrors.Errorf("send info to monitor failed: %w", err)
+	if err := json.NewEncoder(monitorPipeW).Encode(cInfo); err != nil {
+		return nil, xerrors.Errorf("write container info to monitor failed: %w", err)
 	}
 
 	return cInfo, nil

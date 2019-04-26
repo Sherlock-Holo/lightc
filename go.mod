@@ -4,7 +4,6 @@ go 1.12
 
 require (
 	github.com/coreos/go-iptables v0.4.0
-	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pty v1.1.4

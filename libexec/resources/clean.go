@@ -1,6 +1,7 @@
-package libexec
+package resources
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -13,7 +14,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func cleanResources(parent *exec.Cmd, cInfo *info.Info, rootFS *rootfs.RootFS, configFile *os.File, rmAfterRun bool) {
+func CleanResources(parent *exec.Cmd, cInfo *info.Info, rootFS *rootfs.RootFS, configFile *os.File, rmAfterRun bool, done context.CancelFunc) {
 	_ = parent.Wait()
 
 	_ = cInfo.Stdout.Close()
@@ -51,5 +52,9 @@ func cleanResources(parent *exec.Cmd, cInfo *info.Info, rootFS *rootfs.RootFS, c
 		if err := rootfs.Delete(rootFS.ID); err != nil {
 			logrus.Error(xerrors.Errorf("remove rootfs %s failed: %w", rootFS.ID, err))
 		}
+	}
+
+	if done != nil {
+		done()
 	}
 }

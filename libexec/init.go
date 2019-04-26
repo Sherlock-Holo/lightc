@@ -5,7 +5,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func InitPorcess() error {
+func InitProcess() error {
 	if err := process.InitProcess(); err != nil {
 		return xerrors.Errorf("init container process failed: %w", err)
 	}
