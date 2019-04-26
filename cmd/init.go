@@ -10,7 +10,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "DO NOT RUN IT DIRECTLY",
 	Run: func(_ *cobra.Command, _ []string) {
-		if err := libexec.InitPorcess(); err != nil {
+		if err := libexec.InitProcess(); err != nil {
 			logrus.Fatal(err)
 		}
 	},
