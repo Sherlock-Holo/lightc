@@ -2,8 +2,6 @@ package libnetwork
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -66,70 +64,6 @@ func NewNetwork(name string, subnet net.IPNet) (*network.Network, error) {
 
 	if err := initNetwork(nw); err != nil {
 		return nil, xerrors.Errorf("init network failed: %w", err)
-	}
-
-	return nw, nil
-}
-
-func RemoveNetwork(name string) error {
-	nw, err := loadNetwork(name)
-	if err != nil {
-		return xerrors.Errorf("load network failed: %w", err)
-	}
-
-	if err := ipam.IPAllAllocator.DeleteSubnet(nw.Subnet); err != nil {
-		return xerrors.Errorf("delete subnet failed: %w", err)
-	}
-
-	link, err := netlink.LinkByName(name)
-	if err != nil {
-		return xerrors.Errorf("get network bridge failed: %w", err)
-	}
-
-	if err := netlink.LinkDel(link); err != nil {
-		return xerrors.Errorf("delete bridge failed: %w", err)
-	}
-
-	if err := nat.UnsetSNAT(nw.Name, nw.Subnet); err != nil {
-		return xerrors.Errorf("unset SNAT failed: %w", err)
-	}
-
-	if err := os.Remove(filepath.Join(paths.BridgePath, nw.Name)); err != nil {
-		return xerrors.Errorf("remove bridge %s config file failed: %w", nw.Name, err)
-	}
-
-	return nil
-}
-
-func loadNetwork(name string) (*network.Network, error) {
-	loadPath := filepath.Join(paths.BridgePath, name)
-	if _, err := os.Stat(loadPath); err != nil {
-		if os.IsNotExist(err) {
-			return nil, xerrors.Errorf("network %s doesn't exist", name)
-		}
-		return nil, xerrors.Errorf("get network stat failed: %w", err)
-	}
-
-	file, err := os.Open(loadPath)
-	if err != nil {
-		return nil, xerrors.Errorf("open network file failed: %w", err)
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
-		return nil, xerrors.Errorf("lock network file failed: %w", err)
-	}
-	defer func() {
-		if err := syscall.Flock(int(file.Fd()), syscall.LOCK_UN); err != nil {
-			logrus.Error(xerrors.Errorf("unlock net work file failed: %w", err))
-		}
-	}()
-
-	nw := new(network.Network)
-	if err := json.NewDecoder(file).Decode(nw); err != nil {
-		return nil, xerrors.Errorf("decode network file failed: %w", err)
 	}
 
 	return nw, nil
@@ -237,98 +171,4 @@ func setEndpointIPAndRoute(ep *endpoint.Endpoint, containerInfo *info.Info) erro
 	}
 
 	return nil
-}
-
-func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
-	nw, err := loadNetwork(networkName)
-	if err != nil {
-		return xerrors.Errorf("load network failed: %w", err)
-	}
-
-	_, _, err = net.ParseCIDR(nw.Subnet.String())
-	if err != nil {
-		return xerrors.Errorf("network subnet invalid: %w", err)
-	}
-
-	ip, err := ipam.IPAllAllocator.Allocate(nw.Subnet)
-	if err != nil {
-		return xerrors.Errorf("allocate ip failed: %w", err)
-	}
-
-	ep := &endpoint.Endpoint{
-		ID:      fmt.Sprintf("%s-%s", networkName, cInfo.ID),
-		IP:      ip,
-		Network: nw,
-		PortMap: cInfo.PortMap,
-	}
-
-	br, err := netlink.LinkByName(nw.Name)
-	if err != nil {
-		return xerrors.Errorf("get bridge failed: %w", err)
-	}
-
-	linkAttrs := netlink.NewLinkAttrs()
-	linkAttrs.Name = ep.ID[:5]
-
-	linkAttrs.MasterIndex = br.Attrs().Index
-
-	ep.Device = &netlink.Veth{
-		LinkAttrs: linkAttrs,
-		PeerName:  "cif-" + ep.ID[:5],
-	}
-
-	if err := netlink.LinkAdd(ep.Device); err != nil {
-		return xerrors.Errorf("add endpoint device failed: %w", err)
-	}
-
-	if err := netlink.LinkSetUp(ep.Device); err != nil {
-		return xerrors.Errorf("set up endpoint device failed: %w", err)
-	}
-
-	if err := setEndpointIPAndRoute(ep, cInfo); err != nil {
-		return xerrors.Errorf("set endpoint ip and route failed: %w", err)
-	}
-
-	nat.SetPortMap(ep)
-
-	cInfo.Network = networkName
-	cInfo.IPNet = nw.Subnet
-	cInfo.IPNet.IP = ip
-
-	return nil
-}
-
-func RemoveContainerFromNetwork(cInfo *info.Info) error {
-	if cInfo.IPNet.IP == nil {
-		return nil
-	}
-
-	nw, err := loadNetwork(cInfo.Network)
-	if err != nil {
-		return xerrors.Errorf("load network failed: %w", err)
-	}
-
-	if err := ipam.IPAllAllocator.Release(nw.Subnet, cInfo.IPNet.IP); err != nil {
-		return xerrors.Errorf("release ip failed: %w", err)
-	}
-	return nil
-}
-
-func ListNetwork() ([]*network.Network, error) {
-	infos, err := ioutil.ReadDir(paths.BridgePath)
-	if err != nil {
-		return nil, xerrors.Errorf("read bridge dir failed: %w", err)
-	}
-
-	nws := make([]*network.Network, 0, len(infos))
-
-	for _, f := range infos {
-		nw, err := loadNetwork(f.Name())
-		if err != nil {
-			return nil, xerrors.Errorf("load network %s failed: %w", f.Name(), err)
-		}
-		nws = append(nws, nw)
-	}
-
-	return nws, nil
 }
