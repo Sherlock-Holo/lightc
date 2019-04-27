@@ -10,6 +10,16 @@ import (
 func afterPivotRoot() error {
 	mountPoints := []mountPoint{
 		{
+			Src:    "/tmpfs",
+			Dst:    "/dev",
+			Mode:   0755,
+			IsDir:  true,
+			fsType: "tmpfs",
+			Flags:  syscall.MS_NOSUID,
+			Data:   "mode=755",
+		},
+
+		{
 			Src:    "proc",
 			Dst:    "/proc",
 			IsDir:  true,
@@ -81,6 +91,10 @@ func afterPivotRoot() error {
 		if err := syscall.Mount(mp.Src, mp.Dst, mp.fsType, mp.Flags, mp.Data); err != nil {
 			return xerrors.Errorf("mount %s failed: %w", mp.Dst, err)
 		}
+	}
+
+	if err := mknod(); err != nil {
+		return xerrors.Errorf("mknod failed: %w", err)
 	}
 
 	links := [][2]string{

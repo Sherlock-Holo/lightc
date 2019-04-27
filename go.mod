@@ -14,6 +14,6 @@ require (
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc
 	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
-	golang.org/x/sys v0.0.0-20190419153524-e8e3143a4f4a // indirect
+	golang.org/x/sys v0.0.0-20190419153524-e8e3143a4f4a
 	golang.org/x/xerrors v0.0.0-20190410155217-1f06c39b4373
 )
