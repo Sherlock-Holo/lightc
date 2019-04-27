@@ -9,17 +9,17 @@ import (
 )
 
 func ListNetwork() ([]*network.Network, error) {
-	infos, err := ioutil.ReadDir(paths.BridgePath)
+	stats, err := ioutil.ReadDir(paths.BridgePath)
 	if err != nil {
 		return nil, xerrors.Errorf("read bridge dir failed: %w", err)
 	}
 
-	nws := make([]*network.Network, 0, len(infos))
+	nws := make([]*network.Network, 0, len(stats))
 
-	for _, f := range infos {
-		nw, err := loadNetwork(f.Name())
+	for _, stat := range stats {
+		nw, err := loadNetwork(stat.Name())
 		if err != nil {
-			return nil, xerrors.Errorf("load network %s failed: %w", f.Name(), err)
+			return nil, xerrors.Errorf("load network %s failed: %w", stat.Name(), err)
 		}
 		nws = append(nws, nw)
 	}

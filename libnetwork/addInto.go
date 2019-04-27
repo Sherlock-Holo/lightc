@@ -18,8 +18,7 @@ func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
 		return xerrors.Errorf("load network failed: %w", err)
 	}
 
-	_, _, err = net.ParseCIDR(nw.Subnet.String())
-	if err != nil {
+	if _, _, err := net.ParseCIDR(nw.Subnet.String()); err != nil {
 		return xerrors.Errorf("network subnet invalid: %w", err)
 	}
 
@@ -35,19 +34,26 @@ func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
 		PortMap: cInfo.PortMap,
 	}
 
+	if len(ep.ID) > 13 {
+		ep.ID = ep.ID[:13]
+	}
+
 	br, err := netlink.LinkByName(nw.Name)
 	if err != nil {
 		return xerrors.Errorf("get bridge failed: %w", err)
 	}
 
 	linkAttrs := netlink.NewLinkAttrs()
-	linkAttrs.Name = ep.ID[:5]
-
+	linkAttrs.Name = ep.ID
 	linkAttrs.MasterIndex = br.Attrs().Index
 
 	ep.Device = &netlink.Veth{
 		LinkAttrs: linkAttrs,
-		PeerName:  "cif-" + ep.ID[:5],
+		PeerName:  "peer-" + ep.ID,
+	}
+
+	if len(ep.Device.PeerName) > 13 {
+		ep.Device.PeerName = ep.Device.PeerName[:13]
 	}
 
 	if err := netlink.LinkAdd(ep.Device); err != nil {
@@ -67,6 +73,53 @@ func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
 	cInfo.Network = networkName
 	cInfo.IPNet = nw.Subnet
 	cInfo.IPNet.IP = ip
+
+	return nil
+}
+
+func setEndpointIPAndRoute(ep *endpoint.Endpoint, containerInfo *info.Info) error {
+	peerLink, err := netlink.LinkByName(ep.Device.PeerName)
+	if err != nil {
+		return xerrors.Errorf("get peer name failed: %w", err)
+	}
+
+	exitNetns, err := enterNetns(peerLink, containerInfo)
+	if err != nil {
+		return xerrors.Errorf("enter netns failed: %w", err)
+	}
+	defer exitNetns()
+
+	interfaceIP := ep.Network.Subnet
+	interfaceIP.IP = ep.IP
+
+	if err := setInterfaceIP(peerLink, interfaceIP); err != nil {
+		return xerrors.Errorf("set container interface IP failed: %w", err)
+	}
+
+	if err := setInterfaceUP(peerLink); err != nil {
+		return xerrors.Errorf("set up container interface failed: %w", err)
+	}
+
+	lo, err := netlink.LinkByName("lo")
+	if err != nil {
+		return xerrors.Errorf("get iface lo failed: %w", err)
+	}
+
+	if err := setInterfaceUP(lo); err != nil {
+		return xerrors.Errorf("set up container lo failed: %w", err)
+	}
+
+	_, ipNet, _ := net.ParseCIDR("0.0.0.0/0")
+
+	defaultRoute := &netlink.Route{
+		LinkIndex: peerLink.Attrs().Index,
+		Gw:        ep.Network.Gateway,
+		Dst:       ipNet,
+	}
+
+	if err := netlink.RouteAdd(defaultRoute); err != nil {
+		return xerrors.Errorf("add default route failed: %w", err)
+	}
 
 	return nil
 }

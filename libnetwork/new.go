@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Sherlock-Holo/lightc/info"
-	"github.com/Sherlock-Holo/lightc/libnetwork/endpoint"
 	"github.com/Sherlock-Holo/lightc/libnetwork/internal/ipam"
 	"github.com/Sherlock-Holo/lightc/libnetwork/internal/nat"
 	"github.com/Sherlock-Holo/lightc/libnetwork/network"
@@ -122,52 +120,6 @@ func setInterfaceIP(iface netlink.Link, ipNet net.IPNet) error {
 func setInterfaceUP(iface netlink.Link) error {
 	if err := netlink.LinkSetUp(iface); err != nil {
 		return xerrors.Errorf("set bridge up failed: %w", err)
-	}
-
-	return nil
-}
-
-func setEndpointIPAndRoute(ep *endpoint.Endpoint, containerInfo *info.Info) error {
-	peerLink, err := netlink.LinkByName(ep.Device.PeerName)
-	if err != nil {
-		return xerrors.Errorf("get peer name failed: %w", err)
-	}
-
-	exitNetns, err := enterNetns(peerLink, containerInfo)
-	if err != nil {
-		return xerrors.Errorf("enter netns failed: %w", err)
-	}
-	defer exitNetns()
-
-	interfaceIP := ep.Network.Subnet
-	interfaceIP.IP = ep.IP
-
-	if err := setInterfaceIP(peerLink, interfaceIP); err != nil {
-		return xerrors.Errorf("set container interface IP failed: %w", err)
-	}
-
-	if err := setInterfaceUP(peerLink); err != nil {
-		return xerrors.Errorf("set up container interface failed: %w", err)
-	}
-
-	lo, err := netlink.LinkByName("lo")
-	if err != nil {
-		return xerrors.Errorf("get iface lo failed: %w", err)
-	}
-
-	if err := setInterfaceUP(lo); err != nil {
-		return xerrors.Errorf("set up container lo failed: %w", err)
-	}
-
-	_, ipNet, _ := net.ParseCIDR("0.0.0.0/0")
-	defaultRoute := &netlink.Route{
-		LinkIndex: peerLink.Attrs().Index,
-		Gw:        ep.Network.Gateway,
-		Dst:       ipNet,
-	}
-
-	if err := netlink.RouteAdd(defaultRoute); err != nil {
-		return xerrors.Errorf("add default route failed: %w", err)
 	}
 
 	return nil

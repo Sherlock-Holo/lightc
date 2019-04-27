@@ -1,8 +1,9 @@
 package libnetwork
 
 import (
+	"fmt"
 	"io/ioutil"
-	"path/filepath"
+	"os"
 	"strconv"
 
 	"github.com/Sherlock-Holo/lightc/libnetwork/internal/nat"
@@ -12,6 +13,11 @@ import (
 )
 
 func init() {
+	// avoid init network in container
+	if os.Args[0] == "/proc/self/exe" {
+		return
+	}
+
 	// allow forward
 	if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte(strconv.Itoa(1)), 0644); err != nil {
 		logrus.Fatal(xerrors.Errorf("set ip forward failed: %w", err))
@@ -29,7 +35,7 @@ func init() {
 
 	// allow nat local network
 	for _, nw := range nws {
-		path := filepath.Join("/proc/sys/net/ipv4/conf", nw.Name, "route_localnet")
+		path := fmt.Sprintf("/proc/sys/net/ipv4/conf/%s/route_localnet", nw.Name)
 		if err := ioutil.WriteFile(path, []byte(strconv.Itoa(1)), 0644); err != nil {
 			logrus.Fatal(xerrors.Errorf("enable bridge local nat failed: %w", err))
 		}

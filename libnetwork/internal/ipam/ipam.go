@@ -239,6 +239,8 @@ func (ipam *IPAM) AllocateSubnet(subnet net.IPNet) (ip net.IP, exist bool, err e
 }
 
 func (ipam *IPAM) allocate(subnet net.IPNet) (ip net.IP) {
+	subnet.IP = subnet.IP.To4()
+
 	subnetStr := subnet.String()
 
 	one, size := subnet.Mask.Size()
