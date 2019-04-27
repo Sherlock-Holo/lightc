@@ -11,6 +11,15 @@ import (
 func afterPivotRoot(supportCgroups []Cgroup) error {
 	mountPoints := []mountPoint{
 		{
+			Src:    "proc",
+			Dst:    "/proc",
+			Mode:   0755,
+			IsDir:  true,
+			fsType: "proc",
+			Flags:  defaultMountFlags,
+		},
+
+		{
 			Src:    "/tmpfs",
 			Dst:    "/dev",
 			Mode:   0755,
@@ -18,15 +27,6 @@ func afterPivotRoot(supportCgroups []Cgroup) error {
 			fsType: "tmpfs",
 			Flags:  syscall.MS_NOSUID,
 			Data:   "mode=755",
-		},
-
-		{
-			Src:    "proc",
-			Dst:    "/proc",
-			Mode:   0755,
-			IsDir:  true,
-			fsType: "proc",
-			Flags:  defaultMountFlags,
 		},
 
 		{

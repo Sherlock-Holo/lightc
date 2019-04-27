@@ -9,6 +9,7 @@ import (
 	"github.com/Sherlock-Holo/lightc/info"
 	"github.com/Sherlock-Holo/lightc/libexec/internal/pivotRoot"
 	"github.com/Sherlock-Holo/lightc/libstorage/rootfs"
+	"golang.org/x/sys/unix"
 	"golang.org/x/xerrors"
 )
 
@@ -44,7 +45,8 @@ func NewParentProcess(envs []string, rootFS *rootfs.RootFS) (cmd *exec.Cmd, wPip
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWNET |
-			syscall.CLONE_NEWIPC,
+			syscall.CLONE_NEWIPC |
+			unix.CLONE_NEWCGROUP,
 	}
 
 	cmd.Dir = rootFS.MergedDir

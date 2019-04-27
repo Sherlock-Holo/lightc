@@ -48,7 +48,7 @@ func mknod() error {
 
 	for _, node := range nodes {
 		if err := syscall.Mknod(node.Dst, syscall.S_IFCHR, int(unix.Mkdev(node.Major, node.minor))); err != nil {
-			return xerrors.Errorf("mknod %s major %d minor %d failed: %w", node.Dst, node.Major, node.minor)
+			return xerrors.Errorf("mknod %s major %d minor %d failed: %w", node.Dst, node.Major, node.minor, err)
 		}
 	}
 
