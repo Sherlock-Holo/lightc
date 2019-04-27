@@ -15,4 +15,8 @@ type mountPoint struct {
 	fsType string
 	Flags  uintptr
 	Data   string
+
+	Symlink bool
+	From    string
+	To      string
 }

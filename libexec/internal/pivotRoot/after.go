@@ -2,12 +2,13 @@ package pivotRoot
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"golang.org/x/xerrors"
 )
 
-func afterPivotRoot() error {
+func afterPivotRoot(supportCgroups []Cgroup) error {
 	mountPoints := []mountPoint{
 		{
 			Src:    "/tmpfs",
@@ -22,6 +23,7 @@ func afterPivotRoot() error {
 		{
 			Src:    "proc",
 			Dst:    "/proc",
+			Mode:   0755,
 			IsDir:  true,
 			fsType: "proc",
 			Flags:  defaultMountFlags,
@@ -54,7 +56,7 @@ func afterPivotRoot() error {
 			IsDir:  true,
 			fsType: "tmpfs",
 			Flags:  defaultMountFlags,
-			Data:   "mode=777",
+			Data:   "mode=1777,size=65536k",
 		},
 
 		{
@@ -64,7 +66,17 @@ func afterPivotRoot() error {
 			IsDir:  true,
 			fsType: "devpts",
 			Flags:  syscall.MS_NOSUID | syscall.MS_NOEXEC,
-			Data:   "ptmxmode=000,mode=620",
+			Data:   "newinstance,ptmxmode=0666,mode=620,gid=5",
+		},
+
+		{
+			Src:    "tmpfs",
+			Dst:    "/sys/fs/cgroup",
+			Mode:   0555,
+			IsDir:  true,
+			fsType: "tmpfs",
+			Flags:  defaultMountFlags,
+			Data:   "mode=755",
 		},
 	}
 
@@ -72,7 +84,7 @@ func afterPivotRoot() error {
 		if _, err := os.Stat(mp.Dst); err != nil {
 			if os.IsNotExist(err) {
 				if mp.IsDir {
-					if err := os.Mkdir(mp.Dst, mp.Mode); err != nil {
+					if err := os.MkdirAll(mp.Dst, mp.Mode); err != nil {
 						return xerrors.Errorf("create %s empty directory failed: %w", mp.Dst, err)
 					}
 				} else {
@@ -114,6 +126,34 @@ func afterPivotRoot() error {
 		if err := syscall.Symlink(l[0], l[1]); err != nil {
 			return xerrors.Errorf("symbolic link %s to %s failed: %w", l[0], l[1], err)
 		}
+	}
+
+	if err := syscall.Chdir("/sys/fs/cgroup"); err != nil {
+		return xerrors.Errorf("chdir to /sys/fs/cgroup failed: %w", err)
+	}
+
+	for _, cgroup := range supportCgroups {
+		if cgroup.Symlink {
+			if err := os.MkdirAll(filepath.Dir(cgroup.To), 0755); err != nil {
+				return xerrors.Errorf("mkdir %s failed: %w", filepath.Dir(cgroup.To), err)
+			}
+
+			if err := os.Symlink(cgroup.From, cgroup.To); err != nil {
+				return xerrors.Errorf("create cgroup symlink from %s to %s failed: %w", cgroup.From, cgroup.To, err)
+			}
+		} else {
+			if err := os.MkdirAll(cgroup.Name, 0755); err != nil {
+				return xerrors.Errorf("mkdir cgroup %s failed: %w", cgroup.Name, err)
+			}
+
+			if err := syscall.Mount("cgroup", cgroup.Name, "cgroup", defaultMountFlags, cgroup.Data); err != nil {
+				return xerrors.Errorf("mount cgroup %s failed: %w", cgroup.Name, err)
+			}
+		}
+	}
+
+	if err := syscall.Chdir("/"); err != nil {
+		return xerrors.Errorf("chdir to / failed: %w", err)
 	}
 
 	return nil
