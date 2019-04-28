@@ -6,12 +6,15 @@ const (
 	LightcDir   = "/var/lib/lightc"
 	UnixSockDir = "/var/run/lightc"
 
-	ConfigName = "config.json"
-	UpperFile  = "diff"
-	WorkFile   = "work"
-	MergedFile = "merged"
-	LogFile    = "container.log"
-	SockFile   = "%s.sock"
+	ConfigName   = "config.json"
+	UpperFile    = "diff"
+	WorkFile     = "work"
+	MergedFile   = "merged"
+	LogFile      = "container.log"
+	SockFile     = "%s.sock"
+	DnsFile      = "resolv.conf"
+	HostnameFile = "hostname"
+	HostsFile    = "host"
 )
 
 var (

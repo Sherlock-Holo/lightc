@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/Sherlock-Holo/lightc/info"
 	"github.com/Sherlock-Holo/lightc/libnetwork/endpoint"
@@ -73,6 +74,18 @@ func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
 	cInfo.Network = networkName
 	cInfo.IPNet = nw.Subnet
 	cInfo.IPNet.IP = ip
+
+	f, err := os.OpenFile(cInfo.RootFS.Hosts, os.O_RDWR|os.O_APPEND, 0644)
+	if err != nil {
+		return xerrors.Errorf("open hosts file failed: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	if _, err := fmt.Fprintf(f, "%s	%s\n", cInfo.IPNet.IP.String(), cInfo.ID); err != nil {
+		return xerrors.Errorf("write hosts file failed: %w", err)
+	}
 
 	return nil
 }

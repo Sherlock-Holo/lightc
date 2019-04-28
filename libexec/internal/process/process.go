@@ -21,21 +21,22 @@ func NewParentProcess(envs []string, rootFS *rootfs.RootFS) (cmd *exec.Cmd, wPip
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWNET |
-			syscall.CLONE_NEWIPC,
+			syscall.CLONE_NEWIPC |
+			unix.CLONE_NEWCGROUP,
 
 		UidMappings: []syscall.SysProcIDMap{
 			{
-				HostID:      os.Getuid(),
+				HostID:      os.Geteuid(),
 				ContainerID: 0,
-				Size:        1,
+				Size:        4294967295,
 			},
 		},
 
 		GidMappings: []syscall.SysProcIDMap{
 			{
-				HostID:      os.Getgid(),
+				HostID:      os.Getegid(),
 				ContainerID: 0,
-				Size:        1,
+				Size:        4294967295,
 			},
 		},
 	}*/

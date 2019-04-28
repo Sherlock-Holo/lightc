@@ -18,6 +18,10 @@ type RootFS struct {
 	UpperDir  string
 	WorkDir   string
 	MergedDir string
+
+	Hosts        string
+	dnsFile      string
+	hostnameFile string
 }
 
 func init() {
