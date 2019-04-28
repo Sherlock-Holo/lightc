@@ -11,6 +11,7 @@ func Execute() {
 		listCmd,
 		stopCmd,
 		killCmd,
+		execCmd,
 
 		initCmd,
 		monitorCmd,
@@ -36,6 +37,8 @@ func Execute() {
 	runCmd.Flags().StringSliceVarP(&envs, "env", "e", nil, "add env into container")
 
 	listCmd.Flags().BoolVarP(&allContainers, "all", "a", false, "list all containers include stopped")
+
+	execCmd.Flags().BoolVarP(&execTTY, "tyt", "t", false, "allocate pseudo tty")
 
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Fatal(err)
