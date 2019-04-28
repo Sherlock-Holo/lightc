@@ -15,7 +15,7 @@ import (
 
 func NewParentProcess(envs []string, rootFS *rootfs.RootFS) (cmd *exec.Cmd, wPipe *os.File, err error) {
 	cmd = exec.Command("/proc/self/exe", "init")
-	/*cmd.SysProcAttr = &syscall.SysProcAttr{
+	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER |
 			syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
@@ -39,16 +39,16 @@ func NewParentProcess(envs []string, rootFS *rootfs.RootFS) (cmd *exec.Cmd, wPip
 				Size:        4294967295,
 			},
 		},
-	}*/
+	}
 
-	cmd.SysProcAttr = &syscall.SysProcAttr{
+	/*cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWNET |
 			syscall.CLONE_NEWIPC |
 			unix.CLONE_NEWCGROUP,
-	}
+	}*/
 
 	cmd.Dir = rootFS.MergedDir
 	cmd.Env = append(cmd.Env, envs...)

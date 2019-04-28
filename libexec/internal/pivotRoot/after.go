@@ -19,7 +19,7 @@ func afterPivotRoot(supportCgroups []Cgroup) error {
 			Flags:  defaultMountFlags,
 		},
 
-		{
+		/*{
 			Src:    "/tmpfs",
 			Dst:    "/dev",
 			Mode:   0755,
@@ -27,7 +27,7 @@ func afterPivotRoot(supportCgroups []Cgroup) error {
 			fsType: "tmpfs",
 			Flags:  syscall.MS_NOSUID,
 			Data:   "mode=755",
-		},
+		},*/
 
 		{
 			Src:    "mqueue",
@@ -105,9 +105,9 @@ func afterPivotRoot(supportCgroups []Cgroup) error {
 		}
 	}
 
-	if err := mknod(); err != nil {
+	/*if err := mknod(); err != nil {
 		return xerrors.Errorf("mknod failed: %w", err)
-	}
+	}*/
 
 	links := [][2]string{
 		{"/proc/self/fd", "/dev/fd"},
