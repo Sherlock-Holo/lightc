@@ -66,7 +66,7 @@ func afterPivotRoot(supportCgroups []Cgroup) error {
 			IsDir:  true,
 			fsType: "devpts",
 			Flags:  syscall.MS_NOSUID | syscall.MS_NOEXEC,
-			Data:   "newinstance,ptmxmode=0666,mode=620,gid=5",
+			Data:   "newinstance,ptmxmode=0666,mode=620",
 		},
 
 		{

@@ -74,16 +74,16 @@ func PivotRoot(root string) error {
 		return xerrors.Errorf("chdir / failed: %w", err)
 	}
 
+	if err := afterPivotRoot(cgroups); err != nil {
+		return xerrors.Errorf("mount after pivot root failed: %w", err)
+	}
+
 	pivotDir = filepath.Join("/", ".pivot_root")
 	if err := syscall.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
 		return xerrors.Errorf("unmount pivot_root dir failed: %w", err)
 	}
 
 	_ = os.Remove(pivotDir)
-
-	if err := afterPivotRoot(cgroups); err != nil {
-		return xerrors.Errorf("mount after pivot root failed: %w", err)
-	}
 
 	return nil
 }
