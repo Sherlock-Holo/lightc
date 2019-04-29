@@ -17,47 +17,61 @@ import (
 )
 
 func NewNetwork(name string, subnet net.IPNet) (*network.Network, error) {
-	if _, err := os.Stat(filepath.Join(paths.BridgePath, name)); err == nil {
-		return nil, xerrors.Errorf("network %s exists", name)
-	}
+	return newNetwork(name, subnet, nil)
+}
 
-	file, err := os.OpenFile(filepath.Join(paths.BridgePath, name), os.O_CREATE|os.O_RDWR, 0600)
+func newNetwork(name string, subnet net.IPNet, nw *network.Network) (*network.Network, error) {
+	f, err := os.Open(paths.NetworkLock)
 	if err != nil {
-		return nil, xerrors.Errorf("create network file failed: %w", err)
+		return nil, xerrors.Errorf("open lock file failed: %w", err)
 	}
 	defer func() {
-		_ = file.Close()
+		_ = f.Close()
 	}()
 
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return nil, xerrors.Errorf("lock network file failed: %W", err)
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		return nil, xerrors.Errorf("lock network failed: %w", err)
 	}
 	defer func() {
-		if err := syscall.Flock(int(file.Fd()), syscall.LOCK_UN); err != nil {
-			logrus.Error(xerrors.Errorf("unlock network file failed: %W", err))
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_UN); err != nil {
+			logrus.Error(xerrors.Errorf("unlock network failed: %w", err))
 		}
 	}()
 
-	ip, exist, err := ipam.IPAllAllocator.AllocateSubnet(subnet)
-	if err != nil {
-		return nil, xerrors.Errorf("allocate subnet failed: %w", err)
-	}
+	if nw == nil {
+		if _, err := os.Stat(filepath.Join(paths.BridgePath, name)); err == nil {
+			return nil, xerrors.Errorf("network %s exists", name)
+		}
 
-	if exist {
-		_ = os.Remove(file.Name())
-		return nil, xerrors.Errorf("subnet %s exists", subnet)
-	}
+		file, err := os.OpenFile(filepath.Join(paths.BridgePath, name), os.O_CREATE|os.O_RDWR, 0600)
+		if err != nil {
+			return nil, xerrors.Errorf("create network file failed: %w", err)
+		}
+		defer func() {
+			_ = file.Close()
+		}()
 
-	nw := &network.Network{
-		Name:    name,
-		Subnet:  subnet,
-		Gateway: ip,
-	}
+		ip, exist, err := ipam.IPAllAllocator.AllocateSubnet(subnet)
+		if err != nil {
+			return nil, xerrors.Errorf("allocate subnet failed: %w", err)
+		}
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "    ")
-	if err := encoder.Encode(nw); err != nil {
-		return nil, xerrors.Errorf("encode network file failed: %w", err)
+		if exist {
+			_ = os.Remove(file.Name())
+			return nil, xerrors.Errorf("subnet %s exists", subnet)
+		}
+
+		nw = &network.Network{
+			Name:    name,
+			Subnet:  subnet,
+			Gateway: ip,
+		}
+
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", "    ")
+		if err := encoder.Encode(nw); err != nil {
+			return nil, xerrors.Errorf("encode network file failed: %w", err)
+		}
 	}
 
 	if err := initNetwork(nw); err != nil {

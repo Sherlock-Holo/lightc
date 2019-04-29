@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/Sherlock-Holo/lightc/paths"
 	"github.com/sirupsen/logrus"
@@ -61,7 +60,7 @@ func (ipam *IPAM) Allocate(subnet net.IPNet) (ip net.IP, err error) {
 		_ = loadFile.Close()
 	}()
 
-	// lock ipam file
+	/*// lock ipam file
 	if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_EX); err != nil {
 		return nil, xerrors.Errorf("lock ipam file failed: %w", err)
 	}
@@ -69,7 +68,7 @@ func (ipam *IPAM) Allocate(subnet net.IPNet) (ip net.IP, err error) {
 		if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_UN); err != nil {
 			logrus.Error(xerrors.Errorf("unlock ipam file failed: %w", err))
 		}
-	}()
+	}()*/
 
 	if err := ipam.load(loadFile); err != nil {
 		return nil, xerrors.Errorf("load ipam file failed: %w", err)
@@ -100,7 +99,7 @@ func (ipam *IPAM) Release(subnet net.IPNet, ip net.IP) (err error) {
 		_ = loadFile.Close()
 	}()
 
-	// lock ipam file
+	/*// lock ipam file
 	if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_EX); err != nil {
 		return xerrors.Errorf("lock ipam file failed: %w", err)
 	}
@@ -108,7 +107,7 @@ func (ipam *IPAM) Release(subnet net.IPNet, ip net.IP) (err error) {
 		if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_UN); err != nil {
 			logrus.Error(xerrors.Errorf("unlock ipam file failed: %w", err))
 		}
-	}()
+	}()*/
 
 	// load ipam file
 	if err := ipam.load(loadFile); err != nil {
@@ -153,7 +152,7 @@ func (ipam *IPAM) DeleteSubnet(subnet net.IPNet) error {
 		_ = loadFile.Close()
 	}()
 
-	// lock ipam file
+	/*// lock ipam file
 	if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_EX); err != nil {
 		return xerrors.Errorf("lock ipam file failed: %w", err)
 	}
@@ -161,7 +160,7 @@ func (ipam *IPAM) DeleteSubnet(subnet net.IPNet) error {
 		if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_UN); err != nil {
 			logrus.Error(xerrors.Errorf("unlock ipam file failed: %w", err))
 		}
-	}()
+	}()*/
 
 	// load ipam file
 	if err := ipam.load(loadFile); err != nil {
@@ -203,7 +202,7 @@ func (ipam *IPAM) AllocateSubnet(subnet net.IPNet) (ip net.IP, exist bool, err e
 		_ = loadFile.Close()
 	}()
 
-	// lock ipam file
+	/*// lock ipam file
 	if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_EX); err != nil {
 		return nil, false, xerrors.Errorf("lock ipam file failed: %w", err)
 	}
@@ -211,7 +210,7 @@ func (ipam *IPAM) AllocateSubnet(subnet net.IPNet) (ip net.IP, exist bool, err e
 		if err := syscall.Flock(int(loadFile.Fd()), syscall.LOCK_UN); err != nil {
 			logrus.Error(xerrors.Errorf("unlock ipam file failed: %w", err))
 		}
-	}()
+	}()*/
 
 	stat, err := loadFile.Stat()
 	if err != nil {
@@ -270,4 +269,29 @@ func (ipam *IPAM) allocate(subnet net.IPNet) (ip net.IP) {
 	}
 
 	return ip
+}
+
+func (ipam *IPAM) ResetSubnet(subnet net.IPNet) error {
+	// open ipam file
+	loadFile, err := os.OpenFile(ipam.SubnetAllocatorPath, os.O_RDWR, 0600)
+	if err != nil {
+		return xerrors.Errorf("open ipam file failed: %w", err)
+	}
+	defer func() {
+		_ = loadFile.Close()
+	}()
+
+	if err := ipam.load(loadFile); err != nil {
+		return xerrors.Errorf("load ipam file failed: %w", err)
+	}
+
+	delete(ipam.SubnetMap, subnet.String())
+
+	ipam.allocate(subnet)
+
+	if err := ipam.dump(loadFile); err != nil {
+		return xerrors.Errorf("dump ipam file failed: %w", err)
+	}
+
+	return nil
 }

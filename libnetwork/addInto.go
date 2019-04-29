@@ -4,16 +4,36 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"syscall"
 
 	"github.com/Sherlock-Holo/lightc/info"
 	"github.com/Sherlock-Holo/lightc/libnetwork/endpoint"
 	"github.com/Sherlock-Holo/lightc/libnetwork/internal/ipam"
 	"github.com/Sherlock-Holo/lightc/libnetwork/internal/nat"
+	"github.com/Sherlock-Holo/lightc/paths"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/xerrors"
 )
 
 func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
+	f, err := os.Open(paths.NetworkLock)
+	if err != nil {
+		return xerrors.Errorf("open lock file failed: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		return xerrors.Errorf("lock network failed: %w", err)
+	}
+	defer func() {
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_UN); err != nil {
+			logrus.Error(xerrors.Errorf("unlock network failed: %w", err))
+		}
+	}()
+
 	nw, err := loadNetwork(networkName)
 	if err != nil {
 		return xerrors.Errorf("load network failed: %w", err)
@@ -75,15 +95,15 @@ func AddContainerIntoNetwork(networkName string, cInfo *info.Info) error {
 	cInfo.IPNet = nw.Subnet
 	cInfo.IPNet.IP = ip
 
-	f, err := os.OpenFile(cInfo.RootFS.Hosts, os.O_RDWR|os.O_APPEND, 0644)
+	containerHosts, err := os.OpenFile(cInfo.RootFS.Hosts, os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
 		return xerrors.Errorf("open hosts file failed: %w", err)
 	}
 	defer func() {
-		_ = f.Close()
+		_ = containerHosts.Close()
 	}()
 
-	if _, err := fmt.Fprintf(f, "%s	%s\n", cInfo.IPNet.IP.String(), cInfo.ID); err != nil {
+	if _, err := fmt.Fprintf(containerHosts, "%s	%s\n", cInfo.IPNet.IP.String(), cInfo.ID); err != nil {
 		return xerrors.Errorf("write hosts file failed: %w", err)
 	}
 

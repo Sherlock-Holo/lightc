@@ -23,4 +23,5 @@ var (
 	IPAllocatorPath = filepath.Join(NetworkPath, "ipam/subnet.json")
 	ImagesPath      = filepath.Join(LightcDir, "images")
 	RootFSPath      = filepath.Join(LightcDir, "rootfs")
+	NetworkLock     = filepath.Join(NetworkPath, "network.lock")
 )
